@@ -70,50 +70,88 @@
 #' head(occ_gbif_issue$occ_gbif_issue)
 #' }
 #'
-#' @importFrom dplyr arrange
-#' @importFrom utils data
+
+#' Fast rewrite using data.table
+
 #' @export
 extract_gbif_issue <- function(occ = NA,
-                               enumOccurrenceIssue = NA)
-{
-  {
-    if (NROW(enumOccurrenceIssue)==1)
-    {
-      data(EnumOccurrenceIssue)
-    }else
-    {
-      EnumOccurrenceIssue <- enumOccurrenceIssue
+                               enumOccurrenceIssue = NA) {
+
+  if (!requireNamespace("data.table", quietly = TRUE)) {
+    stop("Package 'data.table' is required for this implementation.")
+  }
+
+  # Load EnumOccurrenceIssue if not supplied
+  if (length(enumOccurrenceIssue) == 1 && is.na(enumOccurrenceIssue)) {
+    data("EnumOccurrenceIssue", envir = environment())
+  } else {
+    EnumOccurrenceIssue <- enumOccurrenceIssue
+  }
+
+  if (is.null(occ) || nrow(occ) == 0) {
+    stop("occ is empty!")
+  }
+
+  # Cast safely without duplicating memory if it's already a data.table
+  occDT <- data.table::as.data.table(occ)
+
+  if (!"Ctrl_issue" %in% names(occDT)) {
+    stop("occ must contain column Ctrl_issue")
+  }
+
+  issue_key <- as.character(EnumOccurrenceIssue$constant)
+  issue_key <- issue_key[!is.na(issue_key) & issue_key != ""]
+
+  n <- nrow(occDT)
+
+  # Pre-allocate the issue table natively in data.table
+  issue_table <- data.table::setDF(
+    lapply(issue_key, function(x) rep(FALSE, n))
+  )
+  names(issue_table) <- issue_key
+  data.table::setDT(issue_table)
+
+  # Normalize Ctrl_issue to character; treat NA as blank
+  x <- as.character(occDT$Ctrl_issue)
+  x[is.na(x)] <- ""
+
+  # THE FIX: Run strsplit exactly once and store it to save massive amounts of RAM
+  split_issues <- strsplit(x, "[;,]", perl = TRUE)
+
+  # Create long table mapping rows to their specific issues
+  long <- data.table::data.table(
+    row_id = rep.int(seq_len(n), lengths(split_issues)),
+    issue  = trimws(unlist(split_issues, use.names = FALSE))
+  )
+
+  # Keep only valid issues
+  long <- long[issue %chin% issue_key]
+
+  if (nrow(long) > 0) {
+    # Deduplicate in case an issue appears twice in one row string
+    long <- unique(long, by = c("row_id", "issue"))
+
+    # Fast assignment: Map the TRUE values directly into the table
+    issue_list <- split(long$row_id, long$issue)
+    for (k in names(issue_list)) {
+      data.table::set(issue_table, i = issue_list[[k]], j = k, value = TRUE)
     }
-
-    issue_table <- data.frame(t(EnumOccurrenceIssue$constant))
-    colnames(issue_table) <- EnumOccurrenceIssue$constant
-
-    issue_key <- colnames(issue_table)
-    issue_table[1:NROW(occ),issue_key] <- rep(FALSE, NROW(occ))
   }
 
+  # Generate Summary
+  counts <- colSums(issue_table, na.rm = TRUE)
+  issue_result <- data.frame(
+    issue = names(counts),
+    n_occ = as.integer(counts),
+    stringsAsFactors = FALSE
+  )
 
-  ic <- 1
-  for(ic in 1:length(issue_key))
-  {
-    x_issue <- grepl(issue_key[ic], occ$Ctrl_issue)
-    issue_table[,ic] <- x_issue
-  }
+  # Sort summary natively
+  issue_result <- issue_result[order(-issue_result$n_occ), ]
+  rownames(issue_result) <- NULL
 
-  issue_result <- data.frame(issue = issue_key,
-                             n_occ = rep(0,length(issue_key)))
-
-  i=1
-  for(i in 1:length(issue_key))
-  {
-    n_occ <- issue_table[,issue_key[i]] %>% sum()
-    issue_result$n_occ[i] <- issue_table[,issue_key[i]] %>% sum()
-  }
-
-  issue_result <- issue_result %>%
-    dplyr::arrange(desc(n_occ))
-
-  return(list(occ_gbif_issue=issue_table,
-              summary=issue_result))
-
+  return(list(
+    occ_gbif_issue = as.data.frame(issue_table),
+    summary = issue_result
+  ))
 }

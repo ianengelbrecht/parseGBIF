@@ -107,189 +107,177 @@
 #'                wcvp_names = wcvp_names,
 #'                if_author_fails_try_without_combinations = TRUE)
 #' }
+
+#' Purpose: Faster wcvp_check_name() with identical output format
+#' Update: Uses wcvp_prepare_index() attributes/keys when present for O(1) name candidate retrieval
+
 #'
 #' @importFrom dplyr add_row mutate
 #' @importFrom stringr str_c
 #' @export
-wcvp_check_name <- function(searchedName = 'Hemistylus brasiliensis Wedd.',
-                              wcvp_names =  '',
-                              if_author_fails_try_without_combinations = TRUE)
-{
+wcvp_check_name <- function(searchedName = "Hemistylus brasiliensis Wedd.",
+                            wcvp_names = "",
+                            if_author_fails_try_without_combinations = TRUE) {
 
-  if(class(wcvp_names)!='data.frame')
-  {
+  if (!is.data.frame(wcvp_names)) {
     stop("wcvp_names:  Inform wcvp_names data frame!")
   }
-
-  if(is.na(searchedName))
-  {
-    searchedName = ""
+  if (!requireNamespace("data.table", quietly = TRUE)) {
+    stop("wcvp_check_name: package 'data.table' is required")
   }
 
-  if(searchedName=="" )
-  {
-    x <- wcvp_names[0,] %>%
-      dplyr::add_row()  %>%
-      dplyr::mutate(searchedName = searchedName,
-                    taxon_status_of_searchedName = NA,
-                    plant_name_id_of_searchedName = NA,
-                    taxon_authors_of_searchedName = NA,
-                    verified_author = 0,
-                    verified_speciesName = 0,
-                    searchNotes='Not found')
-    colnames(x) <- str_c('wcvp_',colnames(x))
-    return(x)
+  data.table::setDT(wcvp_names)
+  if (!isTRUE(attr(wcvp_names, ".wcvp_indexed"))) {
+    wcvp_names <- wcvp_prepare_index(wcvp_names, overwrite = FALSE)
   }
 
-  x <- {}
-  taxon_status <- ''
+  # Helper: Lightning-fast 1-row NA table matching wcvp_names column classes
+  empty_like <- function() {
+    out <- data.table::as.data.table(lapply(wcvp_names, function(col) col[NA_integer_]))
+    out
+  }
+
+  if (length(searchedName) != 1L) searchedName <- as.character(searchedName[1])
+  if (is.na(searchedName)) searchedName <- ""
+
+  if (searchedName == "") {
+    x <- empty_like()
+    x[, searchedName := searchedName]
+    x[, taxon_status_of_searchedName := NA_character_]
+    x[, plant_name_id_of_searchedName := NA_character_]
+    x[, taxon_authors_of_searchedName := NA_character_]
+    x[, verified_author := 0L]
+    x[, verified_speciesName := 0]
+    x[, searchNotes := "Not found"]
+    data.table::setnames(x, names(x), paste0("wcvp_", names(x)))
+    return(as.data.frame(x))
+  }
+
   sp_wcvp <- standardize_scientificName(searchedName)
 
-  if(sp_wcvp$taxonAuthors != "")
-  {
+  norm_name <- toupper(sp_wcvp$standardizeName)
+  norm_auth_full <- toupper(gsub("\\s+", "", sp_wcvp$taxonAuthors))
+  norm_auth_last <- toupper(gsub("\\s+", "", sp_wcvp$taxonAuthors_last))
+  has_author <- !is.null(sp_wcvp$taxonAuthors) && sp_wcvp$taxonAuthors != ""
 
-    index_author <- 100
-    index <- wcvp_names$TAXON_NAME_U %in% toupper(sp_wcvp$standardizeName) &
-      wcvp_names$TAXON_AUTHORS_U %in% toupper(gsub ("\\s+", "", sp_wcvp$taxonAuthors ))
-    ntaxa <- NROW(wcvp_names[index==TRUE,])
+  # Candidates by name (fast join)
+  cand <- wcvp_names[.(norm_name), on = "TAXON_NAME_U", nomatch = 0L]
 
-    if(ntaxa == 0 & if_author_fails_try_without_combinations == TRUE)
-    {
-      index_author <- 50
-      index <- wcvp_names$TAXON_NAME_U %in% toupper(sp_wcvp$standardizeName) &
-        wcvp_names$TAXON_AUTHORS_U %in% toupper(gsub ("\\s+", "", sp_wcvp$taxonAuthors_last ))
-      ntaxa <- NROW(wcvp_names[index==TRUE,])
+  index_author <- 0L
+  if (has_author) {
+    index_author <- 100L
+    cand2 <- cand[TAXON_AUTHORS_U == norm_auth_full]
+
+    if (nrow(cand2) == 0L && isTRUE(if_author_fails_try_without_combinations)) {
+      index_author <- 50L
+      cand2 <- cand[TAXON_AUTHORS_U == norm_auth_last]
     }
 
-
-    if(ntaxa == 0)
-    {
-      index_author <- 0
-      index <- wcvp_names$TAXON_NAME_U %in% toupper(sp_wcvp$standardizeName)
-      ntaxa <- NROW(wcvp_names[index==TRUE,])
+    if (nrow(cand2) == 0L) {
+      index_author <- 0L
+      cand2 <- cand
     }
-
-  }else
-  {
-    index_author <- 0
-    index <- wcvp_names$TAXON_NAME_U %in% toupper(sp_wcvp$standardizeName)
-    ntaxa <- NROW(wcvp_names[index==TRUE,])
+    cand <- cand2
   }
 
+  ntaxa <- nrow(cand)
 
   # Not found
-  if(ntaxa == 0)
-  {
-    x <- wcvp_names[index==TRUE,] %>%
-      dplyr::add_row()  %>%
-      dplyr::mutate(#searchedName=searchedName,
-                    searchedName = sp_wcvp$standardizeName,
-                    taxon_status_of_searchedName = NA,
-                    plant_name_id_of_searchedName = NA,
-                    taxon_authors_of_searchedName = NA,
-                    verified_author = index_author,
-                    verified_speciesName = 0,
-                    searchNotes='Not found')
-
-
+  if (ntaxa == 0L) {
+    x <- empty_like()
+    x[, searchedName := sp_wcvp$standardizeName]
+    x[, taxon_status_of_searchedName := NA_character_]
+    x[, plant_name_id_of_searchedName := NA_character_]
+    x[, taxon_authors_of_searchedName := NA_character_]
+    x[, verified_author := index_author]
+    x[, verified_speciesName := 0]
+    x[, searchNotes := "Not found"]
+    data.table::setnames(x, names(x), paste0("wcvp_", names(x)))
+    return(as.data.frame(x))
   }
 
-  if(ntaxa == 1)
-  {
+  # Single match
+  if (ntaxa == 1L) {
     verified_speciesName <- 100
+    # USE COPY to prevent reference bleeding into the master database
+    irow <- data.table::copy(cand[1])
 
-    teste_plant_name_id <- is.na(wcvp_names$accepted_plant_name_id[index==TRUE])
+    acc_id <- as.character(irow$accepted_plant_name_id)
+    plant_id <- as.character(irow$plant_name_id)
+    acc_missing <- is.na(acc_id) || acc_id == ""
 
-    id_accept <- ifelse(teste_plant_name_id==TRUE,'', wcvp_names$accepted_plant_name_id[index==TRUE])
+    if (!acc_missing && !is.na(plant_id) && plant_id != acc_id) {
+      taxon_status_of_searchedName <- as.character(irow$taxon_status)
+      plant_name_id_of_searchedName <- plant_id
+      taxon_authors_of_searchedName <- as.character(irow$taxon_authors)
 
-    if((!teste_plant_name_id) &
-       (wcvp_names$plant_name_id[index==TRUE] != id_accept ))
-    {
-
-      x <- wcvp_names[index==TRUE,]
-
-      taxon_status_of_searchedName <- wcvp_names[index==TRUE,]$taxon_status
-      plant_name_id_of_searchedName <- wcvp_names[index==TRUE,]$plant_name_id
-      taxon_authors_of_searchedName <- wcvp_names[index==TRUE,]$taxon_authors
-
-      index_synonym <- wcvp_names$plant_name_id %in% x$accepted_plant_name_id
-
-      x <- wcvp_names[index_synonym==TRUE,] %>%
-        dplyr::mutate(#searchedName=searchedName,
-                      searchedName = sp_wcvp$standardizeName,
-                      taxon_status_of_searchedName = taxon_status_of_searchedName,
-                      plant_name_id_of_searchedName = plant_name_id_of_searchedName,
-                      taxon_authors_of_searchedName = taxon_authors_of_searchedName,
-                      verified_author = index_author,
-                      verified_speciesName = verified_speciesName,
-                      searchNotes= 'Updated')
-    }else
-    {
-      x <- wcvp_names[index==TRUE,] %>%
-        # dplyr::add_row()  %>%
-        dplyr::mutate(#searchedName=searchedName,
-                      searchedName = sp_wcvp$standardizeName,
-                      taxon_status_of_searchedName = NA,
-                      plant_name_id_of_searchedName = NA,
-                      taxon_authors_of_searchedName = NA,
-                      verified_author = index_author,
-                      verified_speciesName = verified_speciesName,
-                      searchNotes=taxon_status)
-    }
-
-  }
-
-  if(ntaxa > 1)
-  {
-
-    taxon_status_of_searchedName <- paste(wcvp_names[index==TRUE,]$taxon_status, collapse = '|')
-    plant_name_id_of_searchedName <- paste(wcvp_names[index==TRUE,]$plant_name_id, collapse = '|')
-    # taxon_authors_of_searchedName <- paste(paste0(wcvp_names[index==TRUE,]$taxon_name, ' ',wcvp_names[index==TRUE,]$taxon_authors), collapse = '|')
-    taxon_authors_of_searchedName <- paste(wcvp_names[index==TRUE,]$taxon_authors, collapse = '|')
-
-
-    # Accepted or Homonyms
-    {
-      index_status <- wcvp_names$TAXON_NAME_U %in% toupper(sp_wcvp$standardizeName) &
-        wcvp_names$taxon_status %in% c( "Accepted")
-
-      ntaxa_status <- NROW(wcvp_names[index_status==TRUE,])
-
-      if(ntaxa_status == 1)
-      {
-
-        x <- wcvp_names[index_status==TRUE,] %>%
-          dplyr::mutate(#searchedName=searchedName,
-                        searchedName = sp_wcvp$standardizeName,
-                        taxon_status_of_searchedName = taxon_status_of_searchedName,
-                        plant_name_id_of_searchedName = plant_name_id_of_searchedName,
-                        taxon_authors_of_searchedName = taxon_authors_of_searchedName,
-                        verified_author = index_author,
-                        verified_speciesName = 100/ntaxa,
-                        searchNotes = 'Accepted among homonyms')#taxon_status)
-      }
-      else
-      {
-
-
-        x <- wcvp_names[1==2,] %>%
-          dplyr::add_row()  %>%
-          dplyr::mutate(#searchedName=searchedName,
-                        searchedName = toupper(sp_wcvp$standardizeName),
-                        taxon_status_of_searchedName = taxon_status_of_searchedName,
-                        plant_name_id_of_searchedName = plant_name_id_of_searchedName,
-                        taxon_authors_of_searchedName = taxon_authors_of_searchedName,
-                        verified_author = index_author,
-                        verified_speciesName = 100/ntaxa,#0,
-                        searchNotes='Homonyms')
-
+      # THE FIX: Native data.table lookup instead of massive vectorization
+      target_id <- if (is.numeric(wcvp_names$plant_name_id)) {
+        as.integer(acc_id)
+      } else {
+        as.character(acc_id)
       }
 
+      acc_row <- wcvp_names[.(target_id), on = "plant_name_id", nomatch = NULL]
+
+      if (nrow(acc_row) > 0L) {
+        x <- data.table::copy(acc_row[1])
+      } else {
+        x <- data.table::copy(irow)
+      }
+
+      x[, searchedName := sp_wcvp$standardizeName]
+      x[, taxon_status_of_searchedName := taxon_status_of_searchedName]
+      x[, plant_name_id_of_searchedName := plant_name_id_of_searchedName]
+      x[, taxon_authors_of_searchedName := taxon_authors_of_searchedName]
+      x[, verified_author := index_author]
+      x[, verified_speciesName := verified_speciesName]
+      x[, searchNotes := "Updated"]
+
+      data.table::setnames(x, names(x), paste0("wcvp_", names(x)))
+      return(as.data.frame(x))
     }
 
+    x <- data.table::copy(irow)
+    x[, searchedName := sp_wcvp$standardizeName]
+    x[, taxon_status_of_searchedName := NA_character_]
+    x[, plant_name_id_of_searchedName := NA_character_]
+    x[, taxon_authors_of_searchedName := NA_character_]
+    x[, verified_author := index_author]
+    x[, verified_speciesName := verified_speciesName]
+    x[, searchNotes := ""]
+    data.table::setnames(x, names(x), paste0("wcvp_", names(x)))
+    return(as.data.frame(x))
   }
 
-  colnames(x) <- str_c('wcvp_',colnames(x))
-  return(x)
+  # Multiple matches
+  taxon_status_of_searchedName <- paste(as.character(cand$taxon_status), collapse = "|")
+  plant_name_id_of_searchedName <- paste(as.character(cand$plant_name_id), collapse = "|")
+  taxon_authors_of_searchedName <- paste(as.character(cand$taxon_authors), collapse = "|")
 
+  acc <- cand[taxon_status %in% "Accepted"]
+  if (nrow(acc) == 1L) {
+    x <- data.table::copy(acc[1])
+    x[, searchedName := sp_wcvp$standardizeName]
+    x[, taxon_status_of_searchedName := taxon_status_of_searchedName]
+    x[, plant_name_id_of_searchedName := plant_name_id_of_searchedName]
+    x[, taxon_authors_of_searchedName := taxon_authors_of_searchedName]
+    x[, verified_author := index_author]
+    x[, verified_speciesName := 100 / ntaxa]
+    x[, searchNotes := "Accepted among homonyms"]
+    data.table::setnames(x, names(x), paste0("wcvp_", names(x)))
+    return(as.data.frame(x))
+  }
+
+  # Homonyms
+  x <- empty_like()
+  x[, searchedName := toupper(sp_wcvp$standardizeName)]
+  x[, taxon_status_of_searchedName := taxon_status_of_searchedName]
+  x[, plant_name_id_of_searchedName := plant_name_id_of_searchedName]
+  x[, taxon_authors_of_searchedName := taxon_authors_of_searchedName]
+  x[, verified_author := index_author]
+  x[, verified_speciesName := 100 / ntaxa]
+  x[, searchNotes := "Homonyms"]
+  data.table::setnames(x, names(x), paste0("wcvp_", names(x)))
+  as.data.frame(x)
 }
