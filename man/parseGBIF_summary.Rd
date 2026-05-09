@@ -61,4 +61,5 @@ head(results$parseGBIF_general_summary)
 Pablo Hendrigo Alves de Melo,
 Nadia Bystriakova &
 Alexandre Monro
+(Optimized via data.table for performance)
 }

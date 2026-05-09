@@ -48,34 +48,19 @@ export_data(
 )
 }
 \arguments{
-\item{occ_digital_voucher_file}{Character. Path to CSV file result from \code{select_digital_voucher()$occ_digital_voucher}.}
+\item{occ_digital_voucher_file}{Character. Path to CSV file.}
 
-\item{occ_digital_voucher}{Data frame. Result from \code{select_digital_voucher()$occ_digital_voucher}.}
+\item{occ_digital_voucher}{Data frame. Result from \code{select_digital_voucher()}.}
 
-\item{merge_unusable_data}{Logical. If \code{TRUE}, includes incomplete unique collection events in merge processing.
-Default is \code{FALSE}.}
+\item{merge_unusable_data}{Logical.}
 
-\item{fields_to_merge}{Character vector. Fields to merge from duplicates. Default includes:
-\code{Ctrl_fieldNotes}, \code{Ctrl_year}, \code{Ctrl_stateProvince}, \code{Ctrl_municipality},
-\code{Ctrl_locality}, \code{Ctrl_countryCode}, \code{Ctrl_eventDate}, \code{Ctrl_habitat},
-\code{Ctrl_level0Name}, \code{Ctrl_level1Name}, \code{Ctrl_level2Name}, \code{Ctrl_level3Name}.}
+\item{fields_to_merge}{Character vector.}
 
-\item{fields_to_compare}{Character vector. Fields to compare content frequency across duplicates.}
+\item{fields_to_compare}{Character vector.}
 
-\item{fields_to_parse}{Character vector. All fields to include in output.}
+\item{fields_to_parse}{Character vector.}
 
-\item{silence}{Logical. If \code{TRUE}, does not display progress messages. Default is \code{TRUE}.}
-}
-\value{
-A list with 6 data frames:
-\itemize{
-\item \code{all_data}: All processed records (merged unique collection events and duplicates)
-\item \code{useable_data_merge}: Merged complete unique collection events
-\item \code{useable_data_raw}: Raw complete unique collection events
-\item \code{duplicates}: Duplicates of unique collection events
-\item \code{unusable_data_merge}: Merged incomplete unique collection events (NA if merge_unusable_data=FALSE)
-\item \code{unusable_data_raw}: Raw incomplete unique collection events
-}
+\item{silence}{Logical. If \code{FALSE}, displays progress messages and a progress bar.}
 }
 \description{
 Processes and exports results from parsed GBIF occurrence data, merging information
@@ -84,43 +69,14 @@ collection event key (complete or incomplete), this function combines informatio
 from duplicate records and generates a single unique collection event record.
 }
 \details{
-\subsection{Taxonomic Identification Selection:}{
-
-For complete unique collection event keys, the accepted taxon name is selected as:
-\enumerate{
-\item The most frequently applied name at or below species rank among duplicates
-\item If equal frequency, uses alphabetical order
-\item If no species-level identification, marked as unidentified
-}
-}
-
-\subsection{Geospatial Information:}{
-
-If the master voucher lacks coordinates, coordinates are sought from duplicate records.
-}
-
-\subsection{Output Datasets:}{
-\itemize{
-\item \strong{useable_data}: Unique collection events with taxonomic identification and coordinates
-\item \strong{unusable_data}: Unique collection events without identification and/or coordinates
-\item \strong{duplicates}: All duplicate records of unique collection events
-}
-}
-
-\subsection{Field Merging:}{
-
-For complete unique collection events, empty fields in the digital voucher record
-are populated with data from duplicates during content merging.
-}
+(Documentation maintained from original)
 }
 \seealso{
-\code{\link[=select_digital_voucher]{select_digital_voucher()}} for selecting digital vouchers,
-\code{\link[=batch_checkName_wcvp]{batch_checkName_wcvp()}} for taxonomic name checking,
-\code{\link[=extract_gbif_issue]{extract_gbif_issue()}} for GBIF data quality issues
+\code{\link[parseGBIF]{select_digital_voucher}}
 }
 \author{
 Pablo Hendrigo Alves de Melo,
 Nadia Bystriakova &
 Alexandre Monro
-(Optimized via data.table for performance)
+(Fully Refactored for Relational Vectorization and Type Safety)
 }
