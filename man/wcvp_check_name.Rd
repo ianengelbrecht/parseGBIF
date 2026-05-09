@@ -117,6 +117,8 @@ wcvp_check_name(searchedName = 'Laportea peltata (Blume) Gaudich.',
                wcvp_names = wcvp_names,
                if_author_fails_try_without_combinations = TRUE)
 }
+Purpose: Faster wcvp_check_name() with identical output format
+Update: Uses wcvp_prepare_index() attributes/keys when present for O(1) name candidate retrieval
 
 }
 \seealso{

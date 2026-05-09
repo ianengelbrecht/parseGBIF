@@ -15,14 +15,11 @@ wcvp_check_name_batch(
 \arguments{
 \item{occ}{GBIF occurrence table with selected columns as select_gbif_fields(columns = 'standard')}
 
-\item{wcvp_names}{get data frame in parseGBIF::wcvp_get_data(read_only_to_memory = TRUE)$wcvp_names
-or configure function to save a copy on local disk to optimize loading, see details in help(wcvp_get_data)}
+\item{wcvp_names}{get data frame in parseGBIF::wcvp_get_data(read_only_to_memory = TRUE)$wcvp_names}
 
-\item{if_author_fails_try_without_combinations}{option for partial verification of the authorship of the species.
-Remove the authors of combinations, in parentheses.}
+\item{if_author_fails_try_without_combinations}{option for partial verification of the authorship of the species.}
 
-\item{wcvp_selected_fields}{WCVP fields selected as return, 'standard' basic columns, 'all' all available columns.
-The default is 'standard'}
+\item{wcvp_selected_fields}{WCVP fields selected as return, 'standard' basic columns, 'all' all available columns.}
 
 \item{silence}{if TRUE does not display progress messages}
 }
@@ -36,52 +33,4 @@ list with two data frames:
 \description{
 Species' names can be checked against WCVP database one by one, or in a batch mode.
 To verify individual names, the function wcvp_check_name is used.
-}
-\details{
-See help(wcvp_check_name)
-\itemize{
-\item \href{http://sftp.kew.org/pub/data-repositories/WCVP/}{about WCVP database}
-\item \href{https://powo.science.kew.org/}{World Checklist of Vascular Plants}
-\item \href{http://sftp.kew.org/pub/data-repositories/WCVP/}{WCVP database}
-\item \href{https://powo.science.kew.org/about-wcvp}{(about WCVP)}
-}
-}
-\examples{
-# These examples take >10 minutes to run and require 'parseGBIF::wcvp_get_data()'
-\donttest{
-library(parseGBIF)
-
-help(wcvp_check_name_batch)
-
-occ_file <- 'https://raw.githubusercontent.com/pablopains/parseGBIF/main/dataGBIF/Achatocarpaceae/occurrence.txt'
-
-occ <- prepare_gbif_occurrence_data(gbif_occurrece_file = occ_file,
-                                    columns = 'standard')
-
-# wcvp_names <- wcvp_get_data(read_only_to_memory = TRUE)$wcvp_names
-data(wcvp_names_Achatocarpaceae)
-
-head(wcvp_names)
-
-res_wcvp_check_name_batch <- wcvp_check_name_batch(occ = occ,
-                                                 wcvp_names =  wcvp_names,
-                                                 if_author_fails_try_without_combinations = TRUE,
-                                                 wcvp_selected_fields = 'standard',
-                                                 silence = TRUE)
-
-names(res_wcvp_check_name_batch)
-
-head(res_wcvp_check_name_batch$summary)
-
-head(res_wcvp_check_name_batch$occ_wcvp_check_name)
-}
-
-}
-\seealso{
-\code{\link[parseGBIF]{wcvp_get_data}}, \code{\link[parseGBIF]{wcvp_check_name}}
-}
-\author{
-Pablo Hendrigo Alves de Melo,
-Nadia Bystriakova &
-Alexandre Monro
 }

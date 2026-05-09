@@ -2,29 +2,16 @@
 % Please edit documentation in R/wcvp_get_data.R
 \name{wcvp_get_data}
 \alias{wcvp_get_data}
-\title{Get WCVP database}
+\title{Get local WCVP database}
 \usage{
-wcvp_get_data(
-  url_source = "http://sftp.kew.org/pub/data-repositories/WCVP/",
-  read_only_to_memory = FALSE,
-  path_results = "C:/parseGBIF",
-  update = FALSE,
-  load_distribution = FALSE,
-  load_rda_data = FALSE
-)
+wcvp_get_data(path_data, load_distribution = FALSE, silence = FALSE)
 }
 \arguments{
-\item{url_source}{http://sftp.kew.org/pub/data-repositories/WCVP/}
+\item{path_data}{Character string. The path to the local directory containing the unzipped WCVP CSV files, or the path to the \code{wcvp.zip} file.}
 
-\item{read_only_to_memory}{TRUE to in-memory read-only, not writing a copy to local disk}
+\item{load_distribution}{Logical. TRUE to also load the file with geographical distribution of species.}
 
-\item{path_results}{download destination folder, if read_only_to_memory FALSE}
-
-\item{update}{TRUE to update and load files, FALSE to keep local version and load files, if read_only_to_memory FALSE}
-
-\item{load_distribution}{TRUE to load file with geographical distribution of species, if read_only_to_memory FALSE}
-
-\item{load_rda_data}{Load the WCVP name database from the rda file distributed with the package. To ensure updates, it is recommended to reinstall the package frequently.}
+\item{silence}{Logical. TRUE to suppress progress messages.}
 }
 \value{
 list with two data frames:
@@ -34,10 +21,12 @@ list with two data frames:
 }
 }
 \description{
-Download World Checklist of Vascular Plants (WCVP) database
+Load the World Checklist of Vascular Plants (WCVP) database from a local directory or zip file.
 }
 \details{
-http://sftp.kew.org/pub/data-repositories/WCVP/ This is the public SFTP (Secure File Transfer Protocol) site of the Royal Botanic Gardens, Kew. This space contains data resources publicly accessible to the user `anonymous'.  No password required for access. Use of data made available via this site may be subject to legal and licensing restrictions. The README in the top-level directory for each data resource provides specific information about its terms of use.
+To maximize performance and reliability, this function is designed to read the WCVP dataset from a local download rather than pulling directly from the KEW SFTP server during execution. You can download the latest version from: http://sftp.kew.org/pub/data-repositories/WCVP/
+
+This space contains data resources publicly accessible to the user 'anonymous'. No password required for access. Use of data made available via this site may be subject to legal and licensing restrictions. The README in the top-level directory for each data resource provides specific information about its terms of use.
 }
 \examples{
 \donttest{
@@ -46,14 +35,11 @@ library(parseGBIF)
 
 help(wcvp_get_data)
 
-# Download wcvp database to local disk
-path_data <- tempdir() # you can change this folder
+# Point to the directory where you extracted the WCVP download
+path_data <- "C:/parseGBIF/dataWCVP"
 
-wcvp <- wcvp_get_data(url_source = 'http://sftp.kew.org/pub/data-repositories/WCVP/',
-                 read_only_to_memory = FALSE,
-                 path_results = path_data,
-                 update = FALSE,
-                 load_distribution = TRUE)
+wcvp <- wcvp_get_data(path_data = path_data,
+                      load_distribution = TRUE)
 
 names(wcvp)
 

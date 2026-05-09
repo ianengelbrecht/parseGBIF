@@ -68,6 +68,7 @@ colnames(occ_gbif_issue$occ_gbif_issue)
 head(occ_gbif_issue$occ_gbif_issue)
 }
 
+Fast rewrite using data.table
 }
 \seealso{
 \code{\link[=prepare_gbif_occurrence_data]{prepare_gbif_occurrence_data()}} for preparing GBIF occurrence data,

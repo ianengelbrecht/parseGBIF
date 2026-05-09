@@ -7,10 +7,8 @@
 \title{Generate Collection Event Key Version 2}
 \usage{
 generate_collection_event_key(
-  occ = NA,
-  collectorDictionary_checked_file = NULL,
-  collectorDictionary_checked = NULL,
-  collectorDictionary_file = NULL,
+  occ,
+  collectorDictionary_checked,
   collectorDictionary = NULL,
   silence = TRUE
 )
@@ -19,16 +17,16 @@ generate_collection_event_key(
 \item{occ}{Data frame. GBIF occurrence data containing required columns:
 \code{Ctrl_recordNumber}, \code{Ctrl_family}, \code{Ctrl_recordedBy}, \code{Ctrl_year}.}
 
-\item{collectorDictionary_checked_file}{Character. Path to verified collector dictionary CSV file.}
-
 \item{collectorDictionary_checked}{Data frame. Pre-loaded verified collector dictionary.}
-
-\item{collectorDictionary_file}{Character. Path to base collector dictionary CSV file. If provided, loads
-default dictionary from parseGBIF GitHub repository.}
 
 \item{collectorDictionary}{Data frame. Pre-loaded base collector dictionary.}
 
 \item{silence}{Logical. If \code{TRUE}, suppresses progress messages. Default is \code{TRUE}.}
+
+\item{collectorDictionary_checked_file}{Character. Path to verified collector dictionary CSV file.}
+
+\item{collectorDictionary_file}{Character. Path to base collector dictionary CSV file. If provided, loads
+default dictionary from parseGBIF GitHub repository.}
 }
 \value{
 A list with three components:
