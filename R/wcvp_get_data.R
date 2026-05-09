@@ -1,17 +1,17 @@
-#' @title Get WCVP database
+#' @title Get local WCVP database
 #'
 #' @name wcvp_get_data
 #'
-#' @description Download World Checklist of Vascular Plants (WCVP) database
+#' @description Load the World Checklist of Vascular Plants (WCVP) database from a local directory or zip file.
 #'
-#' @param url_source http://sftp.kew.org/pub/data-repositories/WCVP/
-#' @param read_only_to_memory TRUE to in-memory read-only, not writing a copy to local disk
-#' @param path_results download destination folder, if read_only_to_memory FALSE
-#' @param update TRUE to update and load files, FALSE to keep local version and load files, if read_only_to_memory FALSE
-#' @param load_distribution TRUE to load file with geographical distribution of species, if read_only_to_memory FALSE
-#' @param load_rda_data Load the WCVP name database from the rda file distributed with the package. To ensure updates, it is recommended to reinstall the package frequently.
+#' @param path_data Character string. The path to the local directory containing the unzipped WCVP CSV files, or the path to the `wcvp.zip` file.
+#' @param load_distribution Logical. TRUE to also load the file with geographical distribution of species.
+#' @param silence Logical. TRUE to suppress progress messages.
 #'
-#' @details http://sftp.kew.org/pub/data-repositories/WCVP/ This is the public SFTP (Secure File Transfer Protocol) site of the Royal Botanic Gardens, Kew. This space contains data resources publicly accessible to the user `anonymous'.  No password required for access. Use of data made available via this site may be subject to legal and licensing restrictions. The README in the top-level directory for each data resource provides specific information about its terms of use.
+#' @details
+#' To maximize performance and reliability, this function is designed to read the WCVP dataset from a local download rather than pulling directly from the KEW SFTP server during execution. You can download the latest version from: http://sftp.kew.org/pub/data-repositories/WCVP/
+#'
+#' This space contains data resources publicly accessible to the user 'anonymous'. No password required for access. Use of data made available via this site may be subject to legal and licensing restrictions. The README in the top-level directory for each data resource provides specific information about its terms of use.
 #'
 #' @return list with two data frames:
 #' - `wcvp_names`: taxonomic names database
@@ -30,14 +30,11 @@
 #'
 #' help(wcvp_get_data)
 #'
-#' # Download wcvp database to local disk
-#' path_data <- tempdir() # you can change this folder
+#' # Point to the directory where you extracted the WCVP download
+#' path_data <- "C:/parseGBIF/dataWCVP"
 #'
-#' wcvp <- wcvp_get_data(url_source = 'http://sftp.kew.org/pub/data-repositories/WCVP/',
-#'                  read_only_to_memory = FALSE,
-#'                  path_results = path_data,
-#'                  update = FALSE,
-#'                  load_distribution = TRUE)
+#' wcvp <- wcvp_get_data(path_data = path_data,
+#'                       load_distribution = TRUE)
 #'
 #' names(wcvp)
 #'
@@ -48,85 +45,83 @@
 #' colnames(wcvp$wcvp_distribution)
 #' }
 #'
-#' @importFrom dplyr mutate
-#' @importFrom utils download.file unzip read.table
-#' @importFrom downloader download
+#' @importFrom data.table fread as.data.table := setDF
+#' @importFrom utils unzip
 #' @export
-wcvp_get_data <- function(url_source = "http://sftp.kew.org/pub/data-repositories/WCVP/",
-                     read_only_to_memory = FALSE,
-                     path_results = 'C:/parseGBIF',
-                     update = FALSE,
-                     load_distribution = FALSE,
-                     load_rda_data = FALSE)
-{
-  require(dplyr)
+wcvp_get_data <- function(path_data,
+                          load_distribution = FALSE,
+                          silence = FALSE) {
 
-  if(read_only_to_memory==FALSE)
-  {
-    # criar pasta para salvar raultados do dataset
-    if (!dir.exists(path_results)){dir.create(path_results)}
-    path_results <- paste0(path_results,'/dataWCVP')
-    if (!dir.exists(path_results)){dir.create(path_results)}
-  }else
-  {
-    path_results <- tempdir()
+  if (!requireNamespace("data.table", quietly = TRUE)) {
+    stop("Package 'data.table' is required for this fast implementation.")
   }
 
-  # ultima versao
-  nomes <- 'wcvp.zip'
-  destfile <- paste0(path_results,'/',nomes)
+  stage_msg <- function(msg) if (!isTRUE(silence)) message("[parseGBIF] ", msg)
 
-
-  # update?
-
-  if(update == TRUE | read_only_to_memory == TRUE | (!file.exists(destfile)))
-  {
-    url_d <- paste0(url_source,'/',nomes)
-
-    print(paste0('downloading: ',url_d))
-
-    downloader::download(url = url_d, destfile = destfile, mode = "wb")
-
+  # Check if path_data exists
+  if (!file.exists(path_data)) {
+    stop("The path provided does not exist: ", path_data)
   }
 
-  files <- paste0(path_results,'/','wcvp_names.csv')
-
-  if(!file.exists(files))
-  {
-
-    utils::unzip(destfile, exdir = path_results)
-
+  # If a zip file is provided, extract it to a temporary directory
+  if (grepl("\\.zip$", path_data, ignore.case = TRUE)) {
+    stage_msg("Zip file detected. Extracting to temporary directory...")
+    temp_dir <- tempfile()
+    dir.create(temp_dir)
+    utils::unzip(path_data, exdir = temp_dir)
+    target_dir <- temp_dir
+  } else {
+    target_dir <- path_data
   }
 
-  print(paste0('loading: ', files))
+  # 1. Load the Names dataset
+  file_names <- file.path(target_dir, "wcvp_names.csv")
 
-  wcvp_names <- utils::read.table(files, sep="|", header=TRUE, quote = "", fill=TRUE, encoding = "UTF-8") %>%
-    data.frame(stringsAsFactors = F) %>%
-    dplyr::mutate(TAXON_NAME_U = taxon_name %>% toupper(),
-                  TAXON_AUTHORS_U = taxon_authors %>% toupper() %>% gsub ("\\s+", "", .))
-
-
-  print(paste0(' wcvp_names :', NROW(wcvp_names)))
-
-  if(load_distribution == TRUE)
-  {
-    files <- paste0(path_results,'/','wcvp_distribution.csv')
-    print(paste0('loading: ', files))
-    wcvp_distribution <- utils::read.table(files, sep="|", header=TRUE, quote = "", fill=TRUE, encoding = "UTF-8") %>%
-      data.frame(stringsAsFactors = F)
-    print(paste0('wcvp_distribution :', NROW(wcvp_distribution)))
+  if (!file.exists(file_names)) {
+    stop("Could not find 'wcvp_names.csv' in the specified location: ", target_dir)
   }
-  else
-  {wcvp_distribution = NA}
 
+  stage_msg(paste0("Loading wcvp_names from: ", file_names))
 
-  # if(read_only_to_memory==TRUE)
-  # {
-  #   files.rem <- list.files(path = path_results, full.names = TRUE)
-  #   file.remove(files.rem)
-  # }
+  # data.table::fread handles the massive file size efficiently
+  wcvp_names <- data.table::fread(file_names, sep = "|", quote = "", fill = TRUE, encoding = "UTF-8")
 
-  return(list(wcvp_names = wcvp_names,
-              wcvp_distribution =  wcvp_distribution))
+  # Optimize string operations in place
+  stage_msg("Generating standardized taxonomy columns...")
+  wcvp_names[, TAXON_NAME_U := toupper(taxon_name)]
+  wcvp_names[, TAXON_AUTHORS_U := gsub("\\s+", "", toupper(taxon_authors))]
 
+  stage_msg(paste0("wcvp_names loaded: ", nrow(wcvp_names), " rows"))
+
+  # 2. Load the Distribution dataset (if requested)
+  if (isTRUE(load_distribution)) {
+    file_dist <- file.path(target_dir, "wcvp_distribution.csv")
+
+    if (!file.exists(file_dist)) {
+      warning("load_distribution is TRUE, but 'wcvp_distribution.csv' was not found.")
+      wcvp_distribution <- NA
+    } else {
+      stage_msg(paste0("Loading wcvp_distribution from: ", file_dist))
+      wcvp_distribution <- data.table::fread(file_dist, sep = "|", quote = "", fill = TRUE, encoding = "UTF-8")
+
+      # Convert to base data.frame for output compatibility
+      data.table::setDF(wcvp_distribution)
+      stage_msg(paste0("wcvp_distribution loaded: ", nrow(wcvp_distribution), " rows"))
+    }
+  } else {
+    wcvp_distribution <- NA
+  }
+
+  # Clean up temp directory if a zip was extracted
+  if (grepl("\\.zip$", path_data, ignore.case = TRUE)) {
+    unlink(target_dir, recursive = TRUE)
+  }
+
+  # Convert wcvp_names to base data.frame for output compatibility
+  data.table::setDF(wcvp_names)
+
+  return(list(
+    wcvp_names = wcvp_names,
+    wcvp_distribution = wcvp_distribution
+  ))
 }
