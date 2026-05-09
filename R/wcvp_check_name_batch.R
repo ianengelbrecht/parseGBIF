@@ -119,8 +119,6 @@ wcvp_check_name_batch <- function(occ = NA,
     # THE FIX: Native Left Join. Keeps all original rows untouched, brings in strongly-typed wcvp columns natively.
     out <- join_dt[out, on = "Ctrl_scientificName"]
 
-    # Remove the temporary key from summary to match original output perfectly
-    summary_dt[, Ctrl_scientificName := NULL]
   } else {
     summary_dt <- data.table::data.table()
   }
