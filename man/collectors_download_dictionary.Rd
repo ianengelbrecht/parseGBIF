@@ -21,10 +21,10 @@ collectors_download_dictionary(
 A character string containing the full file path to the downloaded and saved CSV file.
 }
 \description{
-Downloads the default, two-part Collector Dictionary from the parseGBIF GitHub repository,
-combines them into a single dataset, and saves it locally. This allows you to run the
+Dynamically scans the parseGBIF GitHub repository for all Collector Dictionary CSV files,
+downloads them, combines them into a single dataset, and saves it locally. This allows you to run the
 \code{\link[parseGBIF]{collectors_prepare_dictionary}} function offline and significantly
-increases pipeline speed by avoiding redundant remote data fetching.
+increases pipeline speed.
 }
 \examples{
 \donttest{
@@ -41,5 +41,5 @@ print(local_dict_path)
 }
 \author{
 Pablo Hendrigo Alves de Melo
-(Modified for local data caching)
+(Modified for local data caching and dynamic fetching)
 }

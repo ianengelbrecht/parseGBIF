@@ -14,10 +14,9 @@ export_data(
     "Ctrl_level3Name"),
   fields_to_compare = c("Ctrl_gbifID", "Ctrl_scientificName", "Ctrl_recordedBy",
     "Ctrl_recordNumber", "Ctrl_identifiedBy", "Ctrl_dateIdentified",
-    "Ctrl_institutionCode", "Ctrl_collectionCode", "Ctrl_datasetName",
-    "Ctrl_datasetName", "Ctrl_language", "wcvp_plant_name_id", "wcvp_taxon_rank",
-    "wcvp_taxon_status", "wcvp_family", "wcvp_taxon_name", "wcvp_taxon_authors",
-    "wcvp_searchNotes"),
+    "Ctrl_institutionCode", "Ctrl_collectionCode", "Ctrl_datasetName", "Ctrl_language",
+    "wcvp_plant_name_id", "wcvp_taxon_rank", "wcvp_taxon_status", "wcvp_family",
+    "wcvp_taxon_name", "wcvp_taxon_authors", "wcvp_searchNotes"),
   fields_to_parse = c("Ctrl_gbifID", "Ctrl_bibliographicCitation", "Ctrl_language",
     "Ctrl_institutionCode", "Ctrl_collectionCode", "Ctrl_datasetName",
     "Ctrl_basisOfRecord", "Ctrl_catalogNumber", "Ctrl_recordNumber", "Ctrl_recordedBy",
@@ -123,4 +122,5 @@ are populated with data from duplicates during content merging.
 Pablo Hendrigo Alves de Melo,
 Nadia Bystriakova &
 Alexandre Monro
+(Optimized via data.table for performance)
 }
