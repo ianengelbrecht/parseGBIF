@@ -2,9 +2,9 @@
 #' @name standardize_scientificName
 #'
 #' @description Standardize binomial name, variety, subspecies, form and hybrids, authorship
-#' to allow comparison with names of taxa in the World Checklist of Vascular Plants (WCVP) database
+#' to allow comparison with names of taxa in the World Checklist of Vascular Plants (WCVP) database.
 #'
-#' @param searchedName scientific name, with or without author
+#' @param searchedName Character. Scientific name, with or without author.
 #'
 #' @details Standardize scientific name according to WCVP format.
 #' Separate generic epithet, specific epithet, variety, subspecies, form, hybrid and author, in the scientific name, if any.
@@ -24,6 +24,7 @@
 #' @author Pablo Hendrigo Alves de Melo,
 #'         Nadia Bystriakova &
 #'         Alexandre Monro
+#'         (Optimized via base R for performance)
 #'
 #' @seealso \code{\link[parseGBIF]{get_wcvp}}, \code{\link[parseGBIF]{checkName_wcvp}}
 #'
@@ -34,7 +35,6 @@
 #' standardize_scientificName('Centaurea ×aemiliae Font Quer')
 #' }
 #'
-#' @importFrom stringr str_split str_detect str_sub str_locate
 #' @export
 standardize_scientificName <- function(searchedName = 'Alomia angustata (Gardner) Benth. ex Baker') {
 

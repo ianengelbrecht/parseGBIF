@@ -7,13 +7,54 @@
 wcvp_prepare_index(wcvp_names, overwrite = FALSE)
 }
 \arguments{
-\item{wcvp_names}{data.frame as loaded from WCVP (must contain TAXON_NAME_U, TAXON_AUTHORS_U)}
+\item{wcvp_names}{Data frame. As loaded from WCVP (must contain \code{TAXON_NAME_U} and \code{TAXON_AUTHORS_U}).}
 
-\item{overwrite}{if TRUE, rebuild index even if already present}
+\item{overwrite}{Logical. If \code{TRUE}, rebuilds the index even if it is already present. Default is \code{FALSE}.}
 }
 \value{
-wcvp_names with lookup index attached (attributes) and helper key columns added
+Returns the \code{wcvp_names} data frame (as a \code{data.table}) with lookup indices attached
+via attributes and helper key columns added.
 }
 \description{
-Prepare an index for WCVP name lookup (speed optimization)
+Pre-indexes the WCVP names table for lightning-fast, O(1) lookups in the
+\code{\link[parseGBIF]{wcvp_check_name}} function.
+}
+\details{
+\strong{What it does:}
+\itemize{
+\item Adds lightweight helper columns (if not already present): \code{.KEY_NAME} and \code{.KEY_NAME_AUTH}.
+\item Builds an index map using native \code{data.table} keys (\code{setkey} and \code{setindex}).
+\item Stores the map state as attributes on the data frame so it doesn't break standard printing or subsetting.
+}
+
+\strong{Why this helps:}
+\code{wcvp_check_name()} can execute \code{O(1)} binary lookups to get all candidate rows for a name,
+rather than performing a slow, linear scan of \code{TAXON_NAME_U} on every single function call.
+
+\strong{Safety:}
+This function safely modifies the table by reference. It does NOT change or overwrite any
+existing WCVP columns.
+}
+\examples{
+\donttest{
+# Load WCVP data from local directory
+wcvp_data <- wcvp_get_data(path_data = "C:/parseGBIF/dataWCVP")
+wcvp_names <- wcvp_data$wcvp_names
+
+# Prepare the index
+wcvp_names_indexed <- wcvp_prepare_index(wcvp_names)
+
+# Verify the attribute was attached
+attr(wcvp_names_indexed, ".wcvp_indexed")
+}
+
+}
+\seealso{
+\code{\link[parseGBIF]{wcvp_check_name}}, \code{\link[parseGBIF]{wcvp_get_data}}
+}
+\author{
+Pablo Hendrigo Alves de Melo,
+Nadia Bystriakova &
+Alexandre Monro
+(Optimized via data.table for performance)
 }

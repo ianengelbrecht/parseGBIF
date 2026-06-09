@@ -29,15 +29,16 @@
 #'
 #' @return
 #' A list with two data frames:
-#' - `occ_gbif_issue`: Original occurrence data with additional columns for each GBIF issue,
-#'   containing TRUE/FALSE values indicating whether the issue applies to each record
+#' - `occ_gbif_issue`: A data frame of TRUE/FALSE values corresponding to the rows of the 
+#'   input data, indicating whether each GBIF issue applies to that record.
 #' - `summary`: Summary data frame showing the frequency of each issue across all records,
-#'   sorted by most frequent issues first
+#'   sorted by most frequent issues first.
 #'
 #' @author
 #' Pablo Hendrigo Alves de Melo,
 #' Nadia Bystriakova &
 #' Alexandre Monro
+#' (Optimized via data.table for performance)
 #'
 #' @seealso
 #' [`prepare_gbif_occurrence_data()`] for preparing GBIF occurrence data,
@@ -70,9 +71,8 @@
 #' head(occ_gbif_issue$occ_gbif_issue)
 #' }
 #'
-
-#' Fast rewrite using data.table
-
+#' @importFrom data.table as.data.table setDF setDT data.table set %chin%
+#'
 #' @export
 extract_gbif_issue <- function(occ = NA,
                                enumOccurrenceIssue = NA) {

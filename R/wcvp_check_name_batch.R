@@ -1,28 +1,54 @@
-# File: R/wcvp_check_name_batch.R
-# Purpose: Faster wcvp_check_name_batch() with identical result format
-# Key optimizations:
-# - Avoid repeated scanning of occ_all for each searchedName (no `%in%` update loop).
-# - Compute WCVP checks once per unique name, then join back (vectorized).
-# - Use data.table for fast joins (keeps dependencies minimal and optional).
-# - Preserve return structure: list(occ_wcvp_check_name = <df>, summary = <df>)
-# - Preserve column set and naming exactly as before (colunas_wcvp_sel).
-
 #' @title In batch, use the WCVP database to check accepted names and update synonyms
-#'
 #' @name wcvp_check_name_batch
 #'
-#' @description Species' names can be checked against WCVP database one by one, or in a batch mode.
-#' To verify individual names, the function wcvp_check_name is used.
+#' @description 
+#' Species names can be checked against the WCVP database one by one, or in a batch mode.
+#' To verify individual names, the function \code{\link[parseGBIF]{wcvp_check_name}} is used.
 #'
-#' @param occ GBIF occurrence table with selected columns as select_gbif_fields(columns = 'standard')
-#' @param wcvp_names get data frame in parseGBIF::wcvp_get_data(read_only_to_memory = TRUE)$wcvp_names
-#' @param if_author_fails_try_without_combinations option for partial verification of the authorship of the species.
-#' @param wcvp_selected_fields WCVP fields selected as return, 'standard' basic columns, 'all' all available columns.
-#' @param silence if TRUE does not display progress messages
+#' @param occ Data frame. GBIF occurrence table with selected columns as returned by `select_gbif_fields(columns = 'standard')`.
+#' @param wcvp_names Data frame. WCVP table, typically obtained via `parseGBIF::wcvp_get_data(read_only_to_memory = TRUE)$wcvp_names`.
+#' @param if_author_fails_try_without_combinations Logical. Option for partial verification of the authorship of the species.
+#' @param wcvp_selected_fields Character. WCVP fields selected as return. Use 'standard' for basic columns, or 'all' for all available columns.
+#' @param silence Logical. If `TRUE`, does not display progress messages.
 #'
-#' @return list with two data frames:
-#' - `summary`: summary of name checking results
-#' - `occ_wcvp_check_name`: occurrence data with WCVP fields
+#' @details
+#' **Performance Update:** This function has been heavily optimized to avoid repeated scanning of 
+#' the occurrence table. It extracts unique scientific names, checks them against the WCVP database 
+#' exactly once per unique name, and seamlessly rejoins the results back to the master occurrence 
+#' table using `data.table` vectorized joins. This completely eliminates redundant API/database calls 
+#' for duplicate names.
+#'
+#' @return 
+#' A list with two data frames:
+#' \itemize{
+#'   \item \code{summary}: Summary of name checking results for all unique names evaluated.
+#'   \item \code{occ_wcvp_check_name}: Occurrence data with WCVP fields appended.
+#' }
+#'
+#' @author 
+#' Pablo Hendrigo Alves de Melo,
+#' Nadia Bystriakova &
+#' Alexandre Monro
+#' (Optimized via data.table for performance)
+#' 
+#' @seealso \code{\link[parseGBIF]{wcvp_check_name}}, \code{\link[parseGBIF]{wcvp_get_data}}
+#'
+#' @examples
+#' \donttest{
+#' # Assuming 'occ_data' is your loaded occurrence data
+#' wcvp_data <- wcvp_get_data(read_only_to_memory = TRUE)$wcvp_names
+#' 
+#' results <- wcvp_check_name_batch(
+#'   occ = occ_data,
+#'   wcvp_names = wcvp_data,
+#'   silence = FALSE
+#' )
+#' 
+#' head(results$occ_wcvp_check_name)
+#' head(results$summary)
+#' }
+#'
+#' @importFrom data.table as.data.table setDT copy set setnames rbindlist data.table
 #'
 #' @export
 wcvp_check_name_batch <- function(occ = NA,

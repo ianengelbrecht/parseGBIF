@@ -1,5 +1,5 @@
-#' @title Generate Collection Event Key Version 2
-#' @name generate_collection_event_key_v2
+#' @title Generate Collection Event Key
+#' @name generate_collection_event_key
 #'
 #' @description
 #' Generates standardized collection event keys for biological occurrence data using
@@ -11,55 +11,46 @@
 #' Data frame. GBIF occurrence data containing required columns:
 #' `Ctrl_recordNumber`, `Ctrl_family`, `Ctrl_recordedBy`, `Ctrl_year`.
 #'
-#' @param collectorDictionary_checked_file
-#' Character. Path to verified collector dictionary CSV file.
-#'
 #' @param collectorDictionary_checked
-#' Data frame. Pre-loaded verified collector dictionary.
-#'
-#' @param collectorDictionary_file
-#' Character. Path to base collector dictionary CSV file. If provided, loads
-#' default dictionary from parseGBIF GitHub repository.
+#' Data frame. Pre-loaded verified collector dictionary containing `Ctrl_recordedBy` and 
+#' `Ctrl_nameRecordedBy_Standard`.
 #'
 #' @param collectorDictionary
-#' Data frame. Pre-loaded base collector dictionary.
+#' Data frame. Optional pre-loaded base collector dictionary used to identify newly 
+#' added collectors. Default is `NULL`.
 #'
 #' @param silence
 #' Logical. If `TRUE`, suppresses progress messages. Default is `TRUE`.
 #'
 #' @details
-#' ## Key Improvements from Version 1:
-#' - Vectorized operations replacing loops for better performance
-#' - Efficient data.table joins for large datasets
-#' - Memory-optimized dictionary loading
-#' - Batch processing of collector name matching
-#'
 #' ## Processing Steps:
-#' 1. Loads and validates collector dictionaries
-#' 2. Performs vectorized matching of collector names
-#' 3. Standardizes record numbers (numeric extraction)
-#' 4. Generates unique collection event keys
-#' 5. Identifies new collectors for dictionary updates
+#' 1. Loads and validates the occurrence and dictionary datasets in memory.
+#' 2. Normalizes collector name casing for accurate matching.
+#' 3. Performs a high-speed, vectorized relational join to assign standardized collector names.
+#' 4. Standardizes record numbers by strictly extracting numeric sequences and stripping leading zeros.
+#' 5. Generates unique collection event keys using family, recordedBy, recordNumber, and year.
+#' 6. Identifies new, unmatched collectors for future dictionary updates.
 #'
 #' @return
 #' A list with three components:
-#' - `occ_collectorsDictionary`: Occurrence data with standardized names and collection keys
-#' - `summary`: Frequency summary of collection keys
-#' - `collectorsDictionary_add`: New collector entries for dictionary updates
+#' - `occ_collectorsDictionary`: A data frame containing the standardized names and newly generated collection keys.
+#' - `summary`: A data frame summarizing the frequency of each unique collection key.
+#' - `collectorsDictionary_add`: A data frame of new collector entries not found in the base dictionary.
 #'
 #' @author
 #' Pablo Hendrigo Alves de Melo,
 #' Nadia Bystriakova &
 #' Alexandre Monro
+#' (Optimized via data.table for performance)
 #'
 #' @encoding UTF-8
 #'
 #' @examples
 #' \donttest{
-#' # Generate collection event keys with optimized processing
-#' result <- generate_collection_event_key_v2(
+#' # Assuming occ_data and my_checked_dict are pre-loaded data frames
+#' result <- generate_collection_event_key(
 #'   occ = occ_data,
-#'   collectorDictionary_checked_file = 'collectorDictionary_checked.csv',
+#'   collectorDictionary_checked = my_checked_dict,
 #'   silence = FALSE
 #' )
 #'
@@ -69,13 +60,8 @@
 #' head(result$summary)
 #' }
 #'
-#' @importFrom dplyr bind_rows mutate select rename distinct left_join coalesce
-#' @importFrom dplyr if_else arrange desc count all_of case_when
-#' @importFrom readr read_csv locale
-#' @importFrom stringr str_replace_all
-#' @importFrom data.table as.data.table
-#' @importFrom utils rm
-
+#' @importFrom data.table as.data.table copy := fifelse
+#'
 #' @export
 generate_collection_event_key <- function(occ,
                                           collectorDictionary_checked,

@@ -22,15 +22,14 @@
 #' Once verified, the collector's dictionary can be reused in the future.
 #'
 #' @param occ
-#' GBIF occurrence table with selected columns as returned by `select_gbif_fields(columns = 'standard')`.
+#' Data frame. GBIF occurrence table with selected columns as returned by `select_gbif_fields(columns = 'standard')`.
 #'
 #' @param collectorDictionary_file
-#' Character. Collector dictionary file - point to a file on your local disk.
-#' If empty, will load the default collector dictionary from the package at
-#' https://github.com/pablopains/parseGBIF/tree/main/collectorDictionary.
+#' Character. Path to a collector dictionary file on your local disk. 
+#' Must be provided if `collectorDictionary` data frame is not supplied.
 #'
 #' @param collectorDictionary
-#' Data frame. Collector dictionary data. If provided, uses this data instead of loading from file.
+#' Data frame. Pre-loaded collector dictionary data. If provided, uses this data instead of loading from a file.
 #'
 #' @param silence
 #' Logical. If `TRUE`, does not display progress messages. Default is `TRUE`.
@@ -52,10 +51,6 @@
 #' If recordedBy is present in the collector's dictionary, it returns the checked name; if not,
 #' it returns the last name of the main collector extracted from the recordedBy field.
 #'
-#' If recordedBy is present in the collector's dictionary, returns the main collector's last name
-#' associated with the single recordedBy key; otherwise, returns the main collector's last name
-#' extracted from the recordedBy field.
-#'
 #' It is recommended to curate the main collector's surname automatically extracted from the recordedBy field.
 #' The objective is to standardize the last name of the main collector so that the primary botanical
 #' collector of a sample is always recognized by the same last name, standardized in capital letters
@@ -63,17 +58,11 @@
 #'
 #' ## Technical Implementation:
 #'
-#' 1. **Data Extraction**: Extracts unique recordedBy values from occurrence data
-#' 2. **Name Processing**: Applies `collectors_get_name()` to extract surnames using specified selection method
-#' 3. **Dictionary Integration**: Merges results with existing collector dictionary
-#' 4. **Verification Flagging**: Marks dictionary-verified entries as "checked"
-#' 5. **Character Standardization**: Converts to uppercase and replaces non-ASCII characters
-#'
-#' ## Key Features:
-#' - Supports both local files and default GitHub dictionary
-#' - Maintains backward compatibility with existing collector dictionaries
-#' - Provides flexible surname extraction methods
-#' - Ensures consistent naming across duplicate collection events
+#' 1. **Data Ingestion**: Loads dictionary from local file or provided data frame.
+#' 2. **Data Extraction**: Extracts unique recordedBy values from occurrence data.
+#' 3. **Name Processing**: Applies `collectors_get_name()` to extract surnames using specified selection method.
+#' 4. **Dictionary Integration**: Merges results with existing collector dictionary using optimized relational joins.
+#' 5. **Verification Flagging**: Marks dictionary-verified entries as "checked".
 #'
 #' @return
 #' Returns a data frame with the following columns:
@@ -86,180 +75,142 @@
 #' - `Ctrl_fullName`: Alternative full name representation
 #' - `Ctrl_fullNameII`: Secondary name representation
 #' - `CVStarrVirtualHerbarium_PersonDetails`: Additional person details
+#' - `parseGBIF_collector_record_count`: Number of occurrences associated with this exact recordedBy string
 #'
 #' @author
 #' Pablo Hendrigo Alves de Melo,
 #' Nadia Bystriakova &
 #' Alexandre Monro
+#' (Optimized via data.table for performance)
 #'
 #' @seealso
 #' [`collectors_get_name()`] for extracting collector names from recordedBy fields,
 #' [`generate_collection_event_key()`] for creating unique collection event identifiers
 #'
-#' @examples
-#' \donttest{
-#' # Load GBIF occurrence data
-#' occ <- prepare_gbif_occurrence_data(
-#'   gbif_occurrece_file = 'https://raw.githubusercontent.com/pablopains/parseGBIF/main/collectorDictionary/CollectorsDictionary_parseGBIF.csv',
-#'   columns = 'standard'
-#' )
-#'
-#' # Prepare collector dictionary
-#' collectorsDictionaryFromDataset <- collectors_prepare_dictionary(
-#'   occ = occ,
-#'   collectorDictionary_file = 'https://raw.githubusercontent.com/pablopains/parseGBIF/main/collectorDictionary/CollectorsDictionary.csv'
-#' )
-#'
-#' # View results
-#' colnames(collectorsDictionaryFromDataset)
-#' head(collectorsDictionaryFromDataset)
-#'
-#' # Save results to file
-#' collectorDictionary_checked_file <- paste0(tempdir(), '/', 'collectorsDictionaryFromDataset.csv')
-#' write.csv(
-#'   collectorsDictionaryFromDataset,
-#'   collectorDictionary_checked_file,
-#'   row.names = FALSE,
-#'   fileEncoding = "UTF-8",
-#'   na = ""
-#' )
-#' }
-#'
-#' @importFrom stringr %>%
-#' @importFrom dplyr mutate rename left_join select arrange
-#' @importFrom readr read_csv locale
+#' @importFrom data.table fread as.data.table setDT setnames setDF fifelse
 #' @importFrom rscopus replace_non_ascii
-#' @importFrom utils rbind
 #' @export
-collectors_prepare_dictionary <- function(occ=NA,
+collectors_prepare_dictionary <- function(occ = NA,
                                           collectorDictionary_file = '',
                                           collectorDictionary = NULL,
                                           silence = TRUE,
-                                          surname_selection_type = 'largest_string', #'last_name' OR largest_string
+                                          surname_selection_type = 'largest_string',
                                           max_words_name = 6,
-                                          maximum_characters_in_name = 3)
-{
+                                          maximum_characters_in_name = 3) {
 
-  if(! silence == TRUE)
-  {
-    print('Loading collectorDictionary...')
+  if (!requireNamespace("data.table", quietly = TRUE)) {
+    stop("Package 'data.table' is required for this fast implementation.")
   }
 
-  # if(collectorDictionary_file=='' | is.na(collectorDictionary_file) )
-  # {
-  #   stop("Invalid Collector's Dictionary!")
-  #
-  # }
+  stage_msg <- function(msg) if (!isTRUE(silence)) print(paste0("[parseGBIF] ", msg))
 
-  # collectorDictionary <- readr::read_csv(collectorDictionary_file,
-  #                                        locale = readr::locale(encoding = 'UTF-8'),
-  #                                        show_col_types = FALSE)
+  # ---- 1. Data Ingestion (Fixed logic) ----
+  stage_msg('Loading collectorDictionary...')
 
-
-  if (collectorDictionary_file=='' & is.null(collectorDictionary))
-  {
-
-    collectorDictionary <- rbind(readr::read_csv('https://raw.githubusercontent.com/pablopains/parseGBIF/refs/heads/main/collectorDictionary/CollectorsDictionary_1.csv',
-                                           locale = readr::locale(encoding = 'UTF-8'),
-                                           show_col_types = FALSE),
-                                 readr::read_csv('https://raw.githubusercontent.com/pablopains/parseGBIF/refs/heads/main/collectorDictionary/CollectorsDictionary_2.csv',
-                                                 locale = readr::locale(encoding = 'UTF-8'),
-                                                 show_col_types = FALSE))
+  if (!is.null(collectorDictionary)) {
+    if (data.table::is.data.table(collectorDictionary)) {
+      # Safely copy to prevent altering the user's original table by reference
+      dictDT <- data.table::copy(collectorDictionary)
+    } else {
+      # Converts a standard data.frame into a data.table
+      dictDT <- data.table::as.data.table(collectorDictionary)
+    }
+  } else if (collectorDictionary_file != '' && !is.na(collectorDictionary_file)) {
+    if (!file.exists(collectorDictionary_file)) {
+      stop("File does not exist: ", collectorDictionary_file)
+    }
+    dictDT <- data.table::fread(collectorDictionary_file, encoding = 'UTF-8')
+  } else {
+    stop("You must provide either 'collectorDictionary' (data frame) or 'collectorDictionary_file' (path).")
   }
 
-
-
-
-
-  if(NROW(collectorDictionary)==0 | any(colnames(collectorDictionary) %in% c('Ctrl_nameRecordedBy_Standard',
-                                                                             'Ctrl_recordedBy',
-                                                                             'Ctrl_notes',
-                                                                             'collectorDictionary',
-                                                                             'Ctrl_update',
-                                                                             'collectorName',
-                                                                             'Ctrl_fullName',
-                                                                             'Ctrl_fullNameII',
-                                                                             'CVStarrVirtualHerbarium_PersonDetails'))==FALSE)
-  {
-    stop("CollectorDictionary is empty!")
+  # ---- 2. Split Validation Checks ----
+  if (NROW(dictDT) == 0) {
+    stop("Validation Error: collectorDictionary is empty (contains 0 rows).")
   }
 
-  collectorDictionary <- collectorDictionary %>%
-    dplyr::mutate(Ctrl_recordedBy = Ctrl_recordedBy %>% toupper()) %>%
-    data.frame()
-
-  if(NROW(occ)==0)
-  {
-    stop("Occurrence is empty!")
+  expected_cols <- c('Ctrl_nameRecordedBy_Standard', 'Ctrl_recordedBy', 
+                     'Ctrl_notes', 'collectorDictionary', 'Ctrl_update', 
+                     'collectorName', 'Ctrl_fullName', 'Ctrl_fullNameII', 
+                     'CVStarrVirtualHerbarium_PersonDetails')
+  
+  if (!any(colnames(dictDT) %in% expected_cols)) {
+    stop("Validation Error: collectorDictionary does not contain any recognized dictionary column names.")
   }
 
-  collectorDictionary <- collectorDictionary %>%
-    dplyr::rename(Ctrl_nameRecordedBy_Standard_x = Ctrl_nameRecordedBy_Standard)
-
-  if(! silence == TRUE)
-  {
-    print("Extracting the main collector's surname....")
+  if (NROW(occ) == 0 || is.na(occ)[1]) {
+    stop("Occurrence dataset is empty!")
   }
 
-  Ctrl_lastNameRecordedBy <- lapply(occ$Ctrl_recordedBy %>%
-                                      toupper() %>%
-                                      unique(),
-                                    function(x) collectors_get_name(
-                                      x,
-                                      surname_selection_type = surname_selection_type,
-                                      max_words_name = max_words_name,
-                                      maximum_characters_in_name = maximum_characters_in_name
-                                    )
-  ) %>%
-    do.call(rbind.data.frame, .)
+  # ---- 3. Dictionary Prep ----
+  dictDT[, Ctrl_recordedBy := toupper(as.character(Ctrl_recordedBy))]
+  if ("Ctrl_nameRecordedBy_Standard" %in% names(dictDT)) {
+    data.table::setnames(dictDT, "Ctrl_nameRecordedBy_Standard", "Ctrl_nameRecordedBy_Standard_x")
+  }
 
-  #   recordedBy_Standart <- data.frame(
-  #      Ctrl_nameRecordedBy_Standard =  textclean::replace_non_ascii(toupper(Ctrl_lastNameRecordedBy[,1])),
-  #      Ctrl_recordedBy = occ$Ctrl_recordedBy %>% toupper() %>% unique(),
-  #      stringsAsFactors = FALSE)
+  data.table::setkey(dictDT, Ctrl_recordedBy)
 
-  recordedBy_Standart <- data.frame(
-    Ctrl_nameRecordedBy_Standard =  rscopus::replace_non_ascii(toupper(Ctrl_lastNameRecordedBy[,1])),
-    Ctrl_recordedBy = occ$Ctrl_recordedBy %>% toupper() %>% unique(),
-    stringsAsFactors = FALSE)
+  # ---- 4. Process Occurrences ----
+  stage_msg("Extracting the main collector's surname....")
+  
+  occDT <- data.table::as.data.table(occ)
 
-  recordedBy_Standart <- dplyr::left_join(recordedBy_Standart,
-                                          collectorDictionary,
-                                          by = c('Ctrl_recordedBy')) %>%
-    dplyr::mutate(collectorDictionary=ifelse(!is.na(Ctrl_nameRecordedBy_Standard_x),
-                                             'checked',
-                                             '')) %>%
-    dplyr::mutate(Ctrl_nameRecordedBy_Standard = ifelse(collectorDictionary=='checked',
-                                                        Ctrl_nameRecordedBy_Standard_x,
-                                                        Ctrl_nameRecordedBy_Standard)) %>%
-    # dplyr::arrange(collectorDictionary, Ctrl_nameRecordedBy_Standard, Ctrl_recordedBy) %>%
-    dplyr::mutate(Ctrl_notes = Ctrl_notes %>% as.character(),
-                  Ctrl_update = Ctrl_update %>% as.character(),
-                  Ctrl_nameRecordedBy_Standard = Ctrl_nameRecordedBy_Standard %>% as.character(),
-                  Ctrl_recordedBy = Ctrl_recordedBy %>% as.character(),
-                  collectorName = collectorName %>% as.character(),
-                  Ctrl_fullName = Ctrl_fullName %>% as.character(),
-                  Ctrl_fullNameII = Ctrl_fullNameII %>% as.character(),
-                  CVStarrVirtualHerbarium_PersonDetails = CVStarrVirtualHerbarium_PersonDetails %>% as.character()) %>%
-    # dplyr::select(Ctrl_notes,
-    #               Ctrl_update,
-    #               Ctrl_nameRecordedBy_Standard,
-    #               Ctrl_recordedBy,
-    #               collectorDictionary,
-    #
-    #               collectorName,
-    #               Ctrl_fullName,
-    #               Ctrl_fullNameII,
-    #               CVStarrVirtualHerbarium_PersonDetails)
-    dplyr::select(Ctrl_nameRecordedBy_Standard,
-                  Ctrl_recordedBy,
-                  Ctrl_notes,
-                  collectorDictionary,
-                  Ctrl_update,
-                  collectorName,
-                  Ctrl_fullName,
-                  Ctrl_fullNameII,
-                  CVStarrVirtualHerbarium_PersonDetails)
+  # Instantly get unique recordedBy AND their exact frequency count in one pass
+  occ_counts <- occDT[, .(parseGBIF_collector_record_count = .N), 
+                      by = .(Ctrl_recordedBy = toupper(as.character(Ctrl_recordedBy)))]
+  
+  unique_recordedBy <- occ_counts$Ctrl_recordedBy
 
-  return(recordedBy_Standart)
+  # Process names
+  extracted_names <- lapply(unique_recordedBy, function(x) {
+    collectors_get_name(
+      x,
+      surname_selection_type = surname_selection_type,
+      max_words_name = max_words_name,
+      maximum_characters_in_name = maximum_characters_in_name
+    )
+  })
+
+  # Extract the first column result safely and standardize strings
+  extracted_vec <- sapply(extracted_names, function(res) as.character(res[1]))
+  cleaned_names <- rscopus::replace_non_ascii(toupper(extracted_vec))
+
+  resDT <- data.table::data.table(
+    Ctrl_nameRecordedBy_Standard = cleaned_names,
+    Ctrl_recordedBy = unique_recordedBy,
+    parseGBIF_collector_record_count = occ_counts$parseGBIF_collector_record_count
+  )
+
+  data.table::setkey(resDT, Ctrl_recordedBy)
+
+  # ---- 5. Relational Join (Replacing slow left_join + mutate) ----
+  # Perform a native Left Join
+  resDT <- dictDT[resDT, on = "Ctrl_recordedBy"]
+
+  # Update flags and names via reference
+  resDT[, collectorDictionary := data.table::fifelse(!is.na(Ctrl_nameRecordedBy_Standard_x), "checked", "")]
+  resDT[collectorDictionary == "checked", Ctrl_nameRecordedBy_Standard := Ctrl_nameRecordedBy_Standard_x]
+
+  # Ensure all expected columns exist (pad with NA if missing)
+  for (col in expected_cols) {
+    if (!col %in% names(resDT) && col != "Ctrl_nameRecordedBy_Standard") {
+      resDT[, (col) := NA_character_]
+    }
+  }
+
+  # Cast everything to character strictly as the original did
+  for (col in expected_cols) {
+    resDT[, (col) := as.character(get(col))]
+  }
+
+  # Select final columns and order
+  final_cols <- c("Ctrl_nameRecordedBy_Standard", "Ctrl_recordedBy", "parseGBIF_collector_record_count", "Ctrl_notes",
+                  "collectorDictionary", "Ctrl_update", "collectorName",
+                  "Ctrl_fullName", "Ctrl_fullNameII", "CVStarrVirtualHerbarium_PersonDetails")
+  
+  resDT <- resDT[, ..final_cols]
+  data.table::setorder(resDT, collectorDictionary, Ctrl_nameRecordedBy_Standard, Ctrl_recordedBy)
+  data.table::setDF(resDT)
+  
+  return(resDT)
 }

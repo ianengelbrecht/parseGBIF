@@ -7,18 +7,43 @@
 prepare_gbif_occurrence_data(gbif_occurrece_file = "", columns = "standard")
 }
 \arguments{
-\item{gbif_occurrece_file}{The name of the file with occurrence data downloaded from GBIF}
+\item{gbif_occurrece_file}{Character. The name or path of the file with occurrence data downloaded from GBIF.}
 
-\item{columns}{Character vector of strings to indicate column names of the GBIF occurrence file.
-Use 'standard' to select basic columns for use in the package, 'all' to select all available columns.
-The default is 'standard'}
+\item{columns}{Character string or vector. Indicates which columns to select from the GBIF occurrence file.
+Use \code{'standard'} to select basic columns needed for the package, or \code{'all'} to select all available columns.
+Default is \code{'standard'}.}
 }
 \value{
-data.table with renamed selected fields with prefix "Ctrl_"
+A \code{data.table} containing the selected GBIF occurrence records with field names prefixed by "Ctrl_".
 }
 \description{
-Prepare occurrence data downloaded from GBIF to be used by parseGBIF functions
+Prepare occurrence data downloaded from GBIF to be used by parseGBIF functions.
+Uses high-speed file reading and memory-efficient column selection.
 }
 \details{
-Select data fields and rename field names prefixed with "Ctrl_"
+This function performs the initial data ingestion step. It selectively reads only the required
+data fields directly from the disk to minimize memory usage, and immediately prefixes all
+selected column names with "Ctrl_" for downstream pipeline standardization. It also explicitly
+normalizes missing coordinate flags to \code{FALSE}.
+}
+\examples{
+\donttest{
+# Assuming 'occurrence.txt' is a downloaded GBIF dataset in your working directory
+occ_data <- prepare_gbif_occurrence_data(
+  gbif_occurrece_file = "occurrence.txt",
+  columns = "standard"
+)
+
+head(occ_data)
+}
+
+}
+\seealso{
+\code{\link[parseGBIF]{select_gbif_fields}}
+}
+\author{
+Pablo Hendrigo Alves de Melo,
+Nadia Bystriakova &
+Alexandre Monro
+(Optimized via data.table for performance)
 }

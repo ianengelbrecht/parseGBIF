@@ -1,25 +1,36 @@
 #' @title Get local WCVP database
-#'
 #' @name wcvp_get_data
 #'
 #' @description Load the World Checklist of Vascular Plants (WCVP) database from a local directory or zip file.
 #'
 #' @param path_data Character string. The path to the local directory containing the unzipped WCVP CSV files, or the path to the `wcvp.zip` file.
-#' @param load_distribution Logical. TRUE to also load the file with geographical distribution of species.
-#' @param silence Logical. TRUE to suppress progress messages.
+#' @param load_distribution Logical. `TRUE` to also load the file with the geographical distribution of species. Default is `FALSE`.
+#' @param silence Logical. `TRUE` to suppress progress messages. Default is `FALSE`.
 #'
 #' @details
-#' To maximize performance and reliability, this function is designed to read the WCVP dataset from a local download rather than pulling directly from the KEW SFTP server during execution. You can download the latest version from: http://sftp.kew.org/pub/data-repositories/WCVP/
+#' To maximize performance and reliability, this function is designed to read the WCVP dataset from a 
+#' local download rather than pulling directly from the KEW SFTP server during execution. You can 
+#' download the latest version from: http://sftp.kew.org/pub/data-repositories/WCVP/
 #'
-#' This space contains data resources publicly accessible to the user 'anonymous'. No password required for access. Use of data made available via this site may be subject to legal and licensing restrictions. The README in the top-level directory for each data resource provides specific information about its terms of use.
+#' This space contains data resources publicly accessible to the user 'anonymous'. No password required 
+#' for access. Use of data made available via this site may be subject to legal and licensing restrictions. 
+#' The README in the top-level directory for each data resource provides specific information about its terms of use.
+#' 
+#' **Performance Note:** This function utilizes `data.table::fread` to rapidly parse the massive WCVP 
+#' text files and pre-computes standardized taxonomy columns (`TAXON_NAME_U`, `TAXON_AUTHORS_U`) in C for 
+#' instantaneous downstream matching.
 #'
-#' @return list with two data frames:
-#' - `wcvp_names`: taxonomic names database
-#' - `wcvp_distribution`: geographical distribution data (if load_distribution = TRUE)
+#' @return A list with two elements:
+#' \itemize{
+#'   \item \code{wcvp_names}: A data frame containing the taxonomic names database.
+#'   \item \code{wcvp_distribution}: A data frame containing geographical distribution data (if `load_distribution = TRUE`), otherwise `NA`.
+#' }
 #'
-#' @author Pablo Hendrigo Alves de Melo,
-#'         Nadia Bystriakova &
-#'         Alexandre Monro
+#' @author 
+#' Pablo Hendrigo Alves de Melo,
+#' Nadia Bystriakova &
+#' Alexandre Monro
+#' (Optimized via data.table for local file ingestion)
 #'
 #' @seealso \code{\link[parseGBIF]{wcvp_check_name}}, \code{\link[parseGBIF]{wcvp_check_name_batch}}
 #'
@@ -33,8 +44,10 @@
 #' # Point to the directory where you extracted the WCVP download
 #' path_data <- "C:/parseGBIF/dataWCVP"
 #'
-#' wcvp <- wcvp_get_data(path_data = path_data,
-#'                       load_distribution = TRUE)
+#' wcvp <- wcvp_get_data(
+#'   path_data = path_data,
+#'   load_distribution = TRUE
+#' )
 #'
 #' names(wcvp)
 #'
@@ -45,8 +58,9 @@
 #' colnames(wcvp$wcvp_distribution)
 #' }
 #'
-#' @importFrom data.table fread as.data.table := setDF
+#' @importFrom data.table fread := setDF
 #' @importFrom utils unzip
+#'
 #' @export
 wcvp_get_data <- function(path_data,
                           load_distribution = FALSE,

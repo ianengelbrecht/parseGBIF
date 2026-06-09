@@ -9,24 +9,32 @@ wcvp_get_data(path_data, load_distribution = FALSE, silence = FALSE)
 \arguments{
 \item{path_data}{Character string. The path to the local directory containing the unzipped WCVP CSV files, or the path to the \code{wcvp.zip} file.}
 
-\item{load_distribution}{Logical. TRUE to also load the file with geographical distribution of species.}
+\item{load_distribution}{Logical. \code{TRUE} to also load the file with the geographical distribution of species. Default is \code{FALSE}.}
 
-\item{silence}{Logical. TRUE to suppress progress messages.}
+\item{silence}{Logical. \code{TRUE} to suppress progress messages. Default is \code{FALSE}.}
 }
 \value{
-list with two data frames:
+A list with two elements:
 \itemize{
-\item \code{wcvp_names}: taxonomic names database
-\item \code{wcvp_distribution}: geographical distribution data (if load_distribution = TRUE)
+\item \code{wcvp_names}: A data frame containing the taxonomic names database.
+\item \code{wcvp_distribution}: A data frame containing geographical distribution data (if \code{load_distribution = TRUE}), otherwise \code{NA}.
 }
 }
 \description{
 Load the World Checklist of Vascular Plants (WCVP) database from a local directory or zip file.
 }
 \details{
-To maximize performance and reliability, this function is designed to read the WCVP dataset from a local download rather than pulling directly from the KEW SFTP server during execution. You can download the latest version from: http://sftp.kew.org/pub/data-repositories/WCVP/
+To maximize performance and reliability, this function is designed to read the WCVP dataset from a
+local download rather than pulling directly from the KEW SFTP server during execution. You can
+download the latest version from: http://sftp.kew.org/pub/data-repositories/WCVP/
 
-This space contains data resources publicly accessible to the user 'anonymous'. No password required for access. Use of data made available via this site may be subject to legal and licensing restrictions. The README in the top-level directory for each data resource provides specific information about its terms of use.
+This space contains data resources publicly accessible to the user 'anonymous'. No password required
+for access. Use of data made available via this site may be subject to legal and licensing restrictions.
+The README in the top-level directory for each data resource provides specific information about its terms of use.
+
+\strong{Performance Note:} This function utilizes \code{data.table::fread} to rapidly parse the massive WCVP
+text files and pre-computes standardized taxonomy columns (\code{TAXON_NAME_U}, \code{TAXON_AUTHORS_U}) in C for
+instantaneous downstream matching.
 }
 \examples{
 \donttest{
@@ -38,8 +46,10 @@ help(wcvp_get_data)
 # Point to the directory where you extracted the WCVP download
 path_data <- "C:/parseGBIF/dataWCVP"
 
-wcvp <- wcvp_get_data(path_data = path_data,
-                      load_distribution = TRUE)
+wcvp <- wcvp_get_data(
+  path_data = path_data,
+  load_distribution = TRUE
+)
 
 names(wcvp)
 
@@ -58,4 +68,5 @@ colnames(wcvp$wcvp_distribution)
 Pablo Hendrigo Alves de Melo,
 Nadia Bystriakova &
 Alexandre Monro
+(Optimized via data.table for local file ingestion)
 }

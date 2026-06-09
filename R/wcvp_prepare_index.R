@@ -1,27 +1,56 @@
-# File: R/wcvp_prepare_index.R
-# Purpose: Pre-index WCVP names table for fast lookup in wcvp_check_name()
-#
-# What it does:
-# - Adds lightweight helper columns (if not already present):
-#     .KEY_NAME                = TAXON_NAME_U
-#     .KEY_NAME_AUTH           = paste0(TAXON_NAME_U, "\t", TAXON_AUTHORS_U)
-# - Builds an index map:
-#     .IDX_BY_NAME             = list column: for each unique name, the integer row indices in wcvp_names
-# - Stores the map as attributes on the data.frame (doesn't break printing/subsetting)
-#
-# Why this helps:
-# - wcvp_check_name() can do O(1) lookups to get all candidate rows for a name,
-#   instead of scanning TAXON_NAME_U every call.
-#
-# Safe:
-# - Does NOT change any existing WCVP columns.
-# - Returns a data.frame (same class), just with extra attributes and helper columns.
-
 #' @title Prepare an index for WCVP name lookup (speed optimization)
 #' @name wcvp_prepare_index
-#' @param wcvp_names data.frame as loaded from WCVP (must contain TAXON_NAME_U, TAXON_AUTHORS_U)
-#' @param overwrite if TRUE, rebuild index even if already present
-#' @return wcvp_names with lookup index attached (attributes) and helper key columns added
+#' 
+#' @description 
+#' Pre-indexes the WCVP names table for lightning-fast, O(1) lookups in the 
+#' \code{\link[parseGBIF]{wcvp_check_name}} function.
+#'
+#' @param wcvp_names Data frame. As loaded from WCVP (must contain `TAXON_NAME_U` and `TAXON_AUTHORS_U`).
+#' @param overwrite Logical. If `TRUE`, rebuilds the index even if it is already present. Default is `FALSE`.
+#'
+#' @details
+#' **What it does:**
+#' \itemize{
+#'   \item Adds lightweight helper columns (if not already present): `.KEY_NAME` and `.KEY_NAME_AUTH`.
+#'   \item Builds an index map using native `data.table` keys (`setkey` and `setindex`).
+#'   \item Stores the map state as attributes on the data frame so it doesn't break standard printing or subsetting.
+#' }
+#' 
+#' **Why this helps:**
+#' `wcvp_check_name()` can execute `O(1)` binary lookups to get all candidate rows for a name, 
+#' rather than performing a slow, linear scan of `TAXON_NAME_U` on every single function call.
+#' 
+#' **Safety:**
+#' This function safely modifies the table by reference. It does NOT change or overwrite any 
+#' existing WCVP columns.
+#'
+#' @return 
+#' Returns the `wcvp_names` data frame (as a `data.table`) with lookup indices attached 
+#' via attributes and helper key columns added.
+#'
+#' @author 
+#' Pablo Hendrigo Alves de Melo,
+#' Nadia Bystriakova &
+#' Alexandre Monro
+#' (Optimized via data.table for performance)
+#' 
+#' @seealso \code{\link[parseGBIF]{wcvp_check_name}}, \code{\link[parseGBIF]{wcvp_get_data}}
+#'
+#' @examples
+#' \donttest{
+#' # Load WCVP data from local directory
+#' wcvp_data <- wcvp_get_data(path_data = "C:/parseGBIF/dataWCVP")
+#' wcvp_names <- wcvp_data$wcvp_names
+#' 
+#' # Prepare the index
+#' wcvp_names_indexed <- wcvp_prepare_index(wcvp_names)
+#' 
+#' # Verify the attribute was attached
+#' attr(wcvp_names_indexed, ".wcvp_indexed")
+#' }
+#'
+#' @importFrom data.table setDT := setkey setindex setattr
+#'
 #' @export
 wcvp_prepare_index <- function(wcvp_names, overwrite = FALSE) {
   if (!is.data.frame(wcvp_names)) {

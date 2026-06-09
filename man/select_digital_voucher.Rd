@@ -14,27 +14,33 @@ select_digital_voucher(
 )
 }
 \arguments{
-\item{occ}{GBIF occurrence table with selected columns as select_gbif_fields(columns = 'standard')}
+\item{occ}{GBIF occurrence table with selected columns as \code{select_gbif_fields(columns = 'standard')}}
 
-\item{occ_gbif_issue}{result of function extract_gbif_issue()$occ_gbif_issue}
+\item{occ_gbif_issue}{Result of function \code{extract_gbif_issue()$occ_gbif_issue}}
 
-\item{occ_wcvp_check_name}{result of function batch_checkName_wcvp()$occ_wcvp_check_name}
+\item{occ_wcvp_check_name}{Result of function \code{wcvp_check_name_batch()$occ_wcvp_check_name}}
 
-\item{occ_collectorsDictionary}{result of function update_collectorsDictionary()$occ_collectorsDictionary}
+\item{occ_collectorsDictionary}{Result of function \code{collectors_prepare_dictionary()}}
 
-\item{enumOccurrenceIssue}{An enumeration of validation rules for single occurrence records by GBIF file, if NA, will be used, data(EnumOccurrenceIssue)}
+\item{enumOccurrenceIssue}{An enumeration of validation rules for single occurrence records by GBIF. If \code{NA}, uses \code{data(EnumOccurrenceIssue)}.}
 
-\item{silence}{if TRUE does not display progress messages}
+\item{silence}{Logical. If \code{FALSE}, displays progress messages.}
 }
 \value{
-list with two data frames:
+A list with two data frames:
 \itemize{
-\item occ_digital_voucher: full output dataset (occ_all) with parseGBIF_* fields, plus WCVP sample columns
-\item occ_results: only processing/result fields
+\item \code{occ_digital_voucher}: Full output dataset (\code{occ_all}) with \verb{parseGBIF_*} fields, plus WCVP sample columns.
+\item \code{occ_results}: Processing and result fields only.
 }
 }
 \description{
-Fast rewrite of the original function. Groups duplicates by Ctrl_key_family_recordedBy_recordNumber,
-computes record completeness + geospatial quality, selects a master digital voucher per group,
-sets sample identification fields, and chooses coordinates for spatial analysis.
+Groups duplicates by \code{Ctrl_key_family_recordedBy_recordNumber}, computes record completeness
+and geospatial quality, selects a master digital voucher per group, sets sample identification
+fields, and chooses coordinates for spatial analysis.
+}
+\author{
+Pablo Hendrigo Alves de Melo,
+Nadia Bystriakova &
+Alexandre Monro
+(Optimized via data.table for performance)
 }

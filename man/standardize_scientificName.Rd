@@ -9,7 +9,7 @@ standardize_scientificName(
 )
 }
 \arguments{
-\item{searchedName}{scientific name, with or without author}
+\item{searchedName}{Character. Scientific name, with or without author.}
 }
 \value{
 A list with four elements:
@@ -22,7 +22,7 @@ A list with four elements:
 }
 \description{
 Standardize binomial name, variety, subspecies, form and hybrids, authorship
-to allow comparison with names of taxa in the World Checklist of Vascular Plants (WCVP) database
+to allow comparison with names of taxa in the World Checklist of Vascular Plants (WCVP) database.
 }
 \details{
 Standardize scientific name according to WCVP format.
@@ -48,4 +48,5 @@ standardize_scientificName('Centaurea ×aemiliae Font Quer')
 Pablo Hendrigo Alves de Melo,
 Nadia Bystriakova &
 Alexandre Monro
+(Optimized via base R for performance)
 }

@@ -11,14 +11,13 @@ wcvp_check_name(
 )
 }
 \arguments{
-\item{searchedName}{scientific name, with or without author}
+\item{searchedName}{Character. Scientific name, with or without author.}
 
-\item{wcvp_names}{WCVP table, wcvp_names.csv file from http://sftp.kew.org/pub/data-repositories/WCVP/
-If NA, automatically load the latest version of the database by the function
-parseGBIF::wcvp_get_data(read_only_to_memory = TRUE)$wcvp_names.}
+\item{wcvp_names}{Data frame. WCVP table (\code{wcvp_names.csv}) file from http://sftp.kew.org/pub/data-repositories/WCVP/.
+If \code{NA}, automatically loads the latest version of the database via \code{parseGBIF::wcvp_get_data(read_only_to_memory = TRUE)$wcvp_names}.}
 
-\item{if_author_fails_try_without_combinations}{option for partial verification of the authorship
-of the species. Remove the authors of combinations, in parentheses}
+\item{if_author_fails_try_without_combinations}{Logical. Option for partial verification of the authorship
+of the species. Removes the authors of combinations (in parentheses) if initial match fails.}
 }
 \value{
 Data frame with WCVP fields prefixed with 'wcvp_'
@@ -29,38 +28,35 @@ Use the \href{https://powo.science.kew.org/}{World Checklist of Vascular Plants 
 
 The World Checklist of Vascular Plants (WCVP) database is available from the
 \href{https://powo.science.kew.org/about-wcvp}{Royal Botanic Gardens, Kew}.
-It can be downloaded to a folder of the user's choice or into memory using the get_wcvp function. The output has 33 columns.
+It can be downloaded to a folder of the user's choice or into memory using the \code{get_wcvp} function. The output has 33 columns.
 }
 \details{
-About the World Checklist of Vascular Plants https://powo.science.kew.org/about-wcvp
-searchNotes values:
+\strong{Performance Update:} This function utilizes \code{wcvp_prepare_index()} attributes/keys when present for O(1)
+name candidate retrieval, resulting in massively faster execution times.
+
+About the World Checklist of Vascular Plants: https://powo.science.kew.org/about-wcvp
+
+\strong{\code{searchNotes} values:}
 \itemize{
-\item Accepted - When only one authorless scientific name is present in the list of TAXON_name with
-and TAXON_STATUS equal to "Accepted", verified_speciesName = 100.
-\item Accepted among homonyms - When more than one authorless scientific name is present in the
-TAXON_name list, but only one of the homonyms displays TAXON_STATUS equal to "Accepted",
-verified_speciesName = number of matches/100.
-\item Homonyms - When more than one authorless scientific name is present in the TAXON_name list
-and more than one, or none among the homonyms, display TAXON_STATUS equal to "Accepted",
-verified_speciesName = number of matches/100.
-Before searching for homonyms, there was a failure in trying to find the matching match between
-authorless scientific name in TAXON_name and author in TAXON_AUTHORS, in these cases
-verified_author equal to 0 (zero),
-\item Not Found: When the authorless scientific name is not present in the TAXON_NAME LIST
-\item Unplaced: When only one authorless scientific name is present in the list of TAXON_name with and TAXON_STATUS = "Unplaced"
-\item Updated: When only one authorless scientific name is present in the list of TAXON_name and ACCEPTED_PLANT_NAME_ID
-are not empty (and ACCEPTED_PLANT_NAME_ID is different from the ID of the species consulted)
-taxon_status_of_searchedName, plant_name_id_of_searchedName and taxon_authors_of_searchedName values:
+\item \code{Accepted} - When only one authorless scientific name is present in the list of TAXON_name and TAXON_STATUS equal to "Accepted", verified_speciesName = 100.
+\item \verb{Accepted among homonyms} - When more than one authorless scientific name is present in the TAXON_name list, but only one of the homonyms displays TAXON_STATUS equal to "Accepted", verified_speciesName = number of matches/100.
+\item \code{Homonyms} - When more than one authorless scientific name is present in the TAXON_name list and more than one, or none among the homonyms, display TAXON_STATUS equal to "Accepted", verified_speciesName = number of matches/100. Before searching for homonyms, there was a failure in trying to find the matching match between authorless scientific name in TAXON_name and author in TAXON_AUTHORS, in these cases verified_author equal to 0 (zero).
+\item \verb{Not Found} - When the authorless scientific name is not present in the TAXON_NAME LIST.
+\item \code{Unplaced} - When only one authorless scientific name is present in the list of TAXON_name and TAXON_STATUS = "Unplaced".
+\item \code{Updated} - When only one authorless scientific name is present in the list of TAXON_name and ACCEPTED_PLANT_NAME_ID are not empty (and ACCEPTED_PLANT_NAME_ID is different from the ID of the species consulted).
+}
+
+\strong{\code{taxon_status_of_searchedName}, \code{plant_name_id_of_searchedName}, and \code{taxon_authors_of_searchedName} values:}
 \itemize{
 \item When searchNotes equals "Updated" - The fields record the information of the scientific name originally consulted.
 \item When searchNotes equals "Homonyms" - Fields record the information of homonymous synonyms separated by "|".
 }
-\item verified_author values:
+
+\strong{\code{verified_author} values:}
 \itemize{
-\item When value equal to 100 - when there is matched match between authorless scientific name in TAXON_name and author in TAXON_AUTHORS.
-\item When value equal to 50 - when there is combined correspondence between authorless scientific name in TAXON_name and author, without (combination), in TAXON_AUTHORS.
-\item When value equal to 0 - regardless of the correspondence between authorless scientific name in TAXON_name, author is not present in TAXON_AUTHORS.
-}
+\item \code{100} - When there is matched match between authorless scientific name in TAXON_name and author in TAXON_AUTHORS.
+\item \code{50} - When there is combined correspondence between authorless scientific name in TAXON_name and author, without (combination), in TAXON_AUTHORS.
+\item \code{0} - Regardless of the correspondence between authorless scientific name in TAXON_name, author is not present in TAXON_AUTHORS.
 }
 }
 \examples{
@@ -82,43 +78,16 @@ wcvp_check_name(searchedName = 'Hemistylus boehmerioides Wedd. ex Warm.',
                wcvp_names = wcvp_names,
                if_author_fails_try_without_combinations = TRUE)
 
-# 3) Unplaced - taxon_status = Unplaced
+# 3) Unplaced
 wcvp_check_name(searchedName = 'Leucosyke australis Unruh',
                wcvp_names = wcvp_names,
                if_author_fails_try_without_combinations = TRUE)
 
-# 4) Accepted among homonyms - When author is not informed. In this case, one of the homonyms, taxon_status is accepted
+# 4) Accepted among homonyms
 wcvp_check_name(searchedName = 'Parietaria cretica',
                wcvp_names = wcvp_names,
                if_author_fails_try_without_combinations = TRUE)
-
-# When author is informed
-wcvp_check_name(searchedName = 'Parietaria cretica L.',
-               wcvp_names = wcvp_names,
-               if_author_fails_try_without_combinations = TRUE)
-
-# When author is informed
-wcvp_check_name(searchedName = 'Parietaria cretica Moris',
-               wcvp_names = wcvp_names,
-               if_author_fails_try_without_combinations = TRUE)
-
-# 5) Homonyms - When author is not informed. In this case, none of the homonyms, taxon_status is Accepted
-wcvp_check_name(searchedName = 'Laportea peltata',
-               wcvp_names = wcvp_names,
-               if_author_fails_try_without_combinations = TRUE)
-
-# When author is informed
-wcvp_check_name(searchedName = 'Laportea peltata Gaudich. & Decne.',
-               wcvp_names = wcvp_names,
-               if_author_fails_try_without_combinations = TRUE)
-
-# When author is informed
-wcvp_check_name(searchedName = 'Laportea peltata (Blume) Gaudich.',
-               wcvp_names = wcvp_names,
-               if_author_fails_try_without_combinations = TRUE)
 }
-Purpose: Faster wcvp_check_name() with identical output format
-Update: Uses wcvp_prepare_index() attributes/keys when present for O(1) name candidate retrieval
 
 }
 \seealso{
@@ -128,4 +97,5 @@ Update: Uses wcvp_prepare_index() attributes/keys when present for O(1) name can
 Pablo Hendrigo Alves de Melo,
 Nadia Bystriakova &
 Alexandre Monro
+(Optimized via data.table for performance)
 }

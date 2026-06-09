@@ -16,10 +16,10 @@ If \code{NA} (default), uses the built-in \code{EnumOccurrenceIssue} dataset.}
 \value{
 A list with two data frames:
 \itemize{
-\item \code{occ_gbif_issue}: Original occurrence data with additional columns for each GBIF issue,
-containing TRUE/FALSE values indicating whether the issue applies to each record
+\item \code{occ_gbif_issue}: A data frame of TRUE/FALSE values corresponding to the rows of the
+input data, indicating whether each GBIF issue applies to that record.
 \item \code{summary}: Summary data frame showing the frequency of each issue across all records,
-sorted by most frequent issues first
+sorted by most frequent issues first.
 }
 }
 \description{
@@ -68,7 +68,6 @@ colnames(occ_gbif_issue$occ_gbif_issue)
 head(occ_gbif_issue$occ_gbif_issue)
 }
 
-Fast rewrite using data.table
 }
 \seealso{
 \code{\link[=prepare_gbif_occurrence_data]{prepare_gbif_occurrence_data()}} for preparing GBIF occurrence data,
@@ -79,4 +78,5 @@ Fast rewrite using data.table
 Pablo Hendrigo Alves de Melo,
 Nadia Bystriakova &
 Alexandre Monro
+(Optimized via data.table for performance)
 }
